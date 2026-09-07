@@ -145,6 +145,11 @@ authRouter.post(
     const email = String(req.body.email).trim().toLowerCase();
     const phone = normalizePhone(String(req.body.phone));
     const { firstName, lastName } = splitFullName(String(req.body.fullName));
+    const gender = req.body.gender as 'male' | 'female';
+    const relation =
+      req.body.relation === 'other'
+        ? String(req.body.relationOther ?? '').trim()
+        : String(req.body.relation).trim();
 
     const existingEmail = await getUserByEmail(email);
     if (existingEmail) {
@@ -159,12 +164,15 @@ authRouter.post(
 
     const uid = createId('user');
     const now = nowIso();
+    const fullName = `${firstName} ${lastName}`.trim();
+    const avatarId = pickAvatarId(fullName, gender);
+    const photoURL = avatarPath(avatarId);
     await db.batch(
       [
         {
           sql: `INSERT INTO users (uid, first_name, last_name, email, phone, role, status, gender, relation, photo_url, avatar_id, photo_manual, profile_setup_complete, created_at, updated_at, last_login_at, deactivated_at)
-                VALUES (?, ?, ?, ?, ?, 'user', 'active', NULL, NULL, NULL, NULL, 0, 0, ?, ?, ?, NULL)`,
-          args: [uid, firstName, lastName, email, phone, now, now, now],
+                VALUES (?, ?, ?, ?, ?, 'user', 'active', ?, ?, ?, ?, 0, 1, ?, ?, ?, NULL)`,
+          args: [uid, firstName, lastName, email, phone, gender, relation, photoURL, avatarId, now, now, now],
         },
         {
           sql: `INSERT INTO accounts (email, uid, password_hash) VALUES (?, ?, NULL)`,

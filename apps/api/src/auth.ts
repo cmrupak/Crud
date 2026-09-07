@@ -99,7 +99,29 @@ export async function getUserByUid(uid: string): Promise<UserProfile | null> {
     args: [uid],
   });
   const row = result.rows[0] as unknown as DbUser | undefined;
-  return row ? mapUser(row) : null;
+  if (!row) return null;
+  return ensureAvatar(mapUser(row));
+}
+
+/** Assign a name-based avatar when the user has none and no manual photo. */
+export async function ensureAvatar(profile: UserProfile): Promise<UserProfile> {
+  if (profile.photoManual) return profile;
+  if (profile.avatarId && profile.photoURL) return profile;
+
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim() || profile.email;
+  const avatarId = pickAvatarId(fullName, profile.gender);
+  const photoURL = avatarPath(avatarId);
+  await db.execute({
+    sql: `UPDATE users SET avatar_id = ?, photo_url = ?, photo_manual = 0, updated_at = ? WHERE uid = ?`,
+    args: [avatarId, photoURL, nowIso(), profile.uid],
+  });
+  return {
+    ...profile,
+    avatarId,
+    photoURL,
+    photoManual: false,
+    updatedAt: nowIso(),
+  };
 }
 
 export async function getUserByEmail(email: string): Promise<UserProfile | null> {

@@ -1,22 +1,37 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {
   MESSAGES,
+  RELATION_OPTIONS,
   displayName,
   displayRelation,
   getErrorMessage,
   resolveProfilePhotoUrl,
   validateProfile,
+  type Gender,
 } from '@nexora/shared';
 import { useAuth } from '../context/AuthContext';
-import { getApiUrl, getBackend } from '../services/backend';
+import { getApiUrl, getAssetUrl, getBackend } from '../services/backend';
 import { styles } from './LoginScreen';
+import { colors } from '../theme';
+
+function relationSelectState(stored: string | null | undefined) {
+  if (!stored) return { relation: '', relationOther: '' };
+  if (RELATION_OPTIONS.some((option) => option.value === stored)) {
+    return { relation: stored, relationOther: '' };
+  }
+  return { relation: 'other', relationOther: stored };
+}
 
 export function ProfileScreen() {
   const { user, refreshUser, logout } = useAuth();
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
+  const [gender, setGender] = useState<Gender | ''>(user?.gender ?? '');
+  const initialRelation = relationSelectState(user?.relation);
+  const [relation, setRelation] = useState(initialRelation.relation);
+  const [relationOther, setRelationOther] = useState(initialRelation.relationOther);
   const [saving, setSaving] = useState(false);
   const photoUri = useMemo(
     () =>
@@ -27,23 +42,53 @@ export function ProfileScreen() {
               avatarId: user.avatarId,
               photoManual: user.photoManual,
             },
-            getApiUrl(),
+            getAssetUrl(),
           )
         : null,
     [user],
   );
 
+  useEffect(() => {
+    void refreshUser();
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (!user) return;
+    setFirstName(user.firstName);
+    setLastName(user.lastName);
+    setGender(user.gender ?? '');
+    const next = relationSelectState(user.relation);
+    setRelation(next.relation);
+    setRelationOther(next.relationOther);
+  }, [user]);
+
   if (!user) return null;
 
   async function save() {
-    const validation = validateProfile({ firstName, lastName });
-    if (!validation.valid) {
-      Alert.alert('Check the form', Object.values(validation.errors).join('\n'));
+    const nextErrors: string[] = [];
+    if (gender !== 'male' && gender !== 'female') nextErrors.push('Select male or female.');
+    if (!relation.trim()) nextErrors.push('Select your relationship.');
+    if (relation === 'other' && !relationOther.trim()) nextErrors.push('Describe your relationship.');
+    const validation = validateProfile({
+      firstName,
+      lastName,
+      gender: gender || null,
+      relation,
+      relationOther,
+    });
+    if (!validation.valid || nextErrors.length > 0) {
+      Alert.alert('Check the form', [...Object.values(validation.errors), ...nextErrors].join('\n'));
       return;
     }
     setSaving(true);
     try {
-      await getBackend().users.updateProfile(user.uid, { firstName, lastName });
+      await getBackend().users.updateProfile(user.uid, {
+        firstName,
+        lastName,
+        gender: gender as Gender,
+        relation,
+        relationOther,
+      });
       await refreshUser();
       Alert.alert('Saved', MESSAGES.PROFILE_UPDATED);
     } catch (error) {
@@ -116,6 +161,56 @@ export function ProfileScreen() {
       </Text>
       <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" />
       <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" />
+      <Text style={{ color: colors.ink, fontWeight: '700' }}>Gender</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {(['male', 'female'] as Gender[]).map((value) => (
+          <Pressable
+            key={value}
+            onPress={() => setGender(value)}
+            style={{
+              borderWidth: 1,
+              borderColor: gender === value ? colors.brand : colors.line,
+              backgroundColor: gender === value ? colors.brand : colors.white,
+              borderRadius: 999,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+            }}
+          >
+            <Text style={{ color: gender === value ? '#fff' : colors.ink, fontWeight: '700' }}>
+              {value === 'male' ? 'Male' : 'Female'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={{ color: colors.ink, fontWeight: '700' }}>Relationship</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {RELATION_OPTIONS.map((option) => (
+          <Pressable
+            key={option.value}
+            onPress={() => setRelation(option.value)}
+            style={{
+              borderWidth: 1,
+              borderColor: relation === option.value ? colors.brand : colors.line,
+              backgroundColor: relation === option.value ? colors.brand : colors.white,
+              borderRadius: 999,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+            }}
+          >
+            <Text style={{ color: relation === option.value ? '#fff' : colors.ink, fontWeight: '700' }}>
+              {option.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {relation === 'other' ? (
+        <TextInput
+          style={styles.input}
+          value={relationOther}
+          onChangeText={setRelationOther}
+          placeholder="Describe relationship"
+        />
+      ) : null}
       <Pressable style={styles.button} onPress={() => void save()} disabled={saving}>
         <Text style={styles.buttonText}>{saving ? 'Updating...' : 'Save profile'}</Text>
       </Pressable>

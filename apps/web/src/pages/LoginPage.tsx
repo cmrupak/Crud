@@ -4,16 +4,15 @@ import {
   getErrorMessage,
   resolveProfilePhotoUrl,
   validateIdentify,
-  validateRegistration,
   type LoginCandidate,
 } from '@nexora/shared';
 import { Button, FormError, Input } from '../components/form/Fields.tsx';
 import { useAuth } from '../context/auth-context.ts';
 import { useToast } from '../context/ToastProvider.tsx';
-import { getApiBaseUrl } from '../services/api-url.ts';
+import { getAssetBaseUrl } from '../services/api-url.ts';
 
 export function LoginPage() {
-  const { identify, loginByUid, register } = useAuth();
+  const { identify, loginByUid } = useAuth();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,7 +24,7 @@ export function LoginPage() {
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
   const [candidates, setCandidates] = useState<LoginCandidate[]>([]);
-  const apiBase = useMemo(() => getApiBaseUrl(), []);
+  const apiBase = useMemo(() => getAssetBaseUrl(), []);
 
   async function onContinue(event: FormEvent) {
     event.preventDefault();
@@ -47,24 +46,6 @@ export function LoginPage() {
         return;
       }
       setFormError(result.message);
-    } catch (error) {
-      setFormError(getErrorMessage(error));
-      showError(getErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function onCreate() {
-    const validation = validateRegistration({ fullName: name, email, phone });
-    setErrors(validation.errors);
-    setFormError('');
-    if (!validation.valid) return;
-    setLoading(true);
-    try {
-      await register({ fullName: name, email, phone });
-      showSuccess('Account created');
-      navigate('/setup-profile', { replace: true });
     } catch (error) {
       setFormError(getErrorMessage(error));
       showError(getErrorMessage(error));
@@ -136,12 +117,7 @@ export function LoginPage() {
               {loading ? 'Please wait...' : 'Continue'}
             </Button>
           </form>
-          <Button
-            type="button"
-            loading={loading}
-            style={{ width: '100%', marginTop: 10 }}
-            onClick={() => void onCreate()}
-          >
+          <Button type="button" style={{ width: '100%', marginTop: 10 }} onClick={() => navigate('/register')}>
             Create account
           </Button>
 

@@ -12,7 +12,7 @@ import {
 import { Button, FormError } from '../components/form/Fields.tsx';
 import { useAuth } from '../context/auth-context.ts';
 import { useToast } from '../context/ToastProvider.tsx';
-import { getApiBaseUrl } from '../services/api-url.ts';
+import { getAssetBaseUrl } from '../services/api-url.ts';
 
 export function ExistingUserPage() {
   const { identify, loginByUid } = useAuth();
@@ -24,7 +24,7 @@ export function ExistingUserPage() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [candidates, setCandidates] = useState<LoginCandidate[]>([]);
-  const apiBase = useMemo(() => getApiBaseUrl(), []);
+  const apiBase = useMemo(() => getAssetBaseUrl(), []);
 
   useEffect(() => {
     if (value.trim()) return undefined;

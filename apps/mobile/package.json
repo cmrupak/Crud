@@ -9,6 +9,9 @@
     "android": "expo start --android --go",
     "ios": "expo start --ios --go",
     "web": "expo start --web",
+    "build:apk": "eas build -p android --profile preview",
+    "build:playstore": "eas build -p android --profile production",
+    "submit:playstore": "eas submit -p android --profile production --latest",
     "lint": "echo \"mobile lint skipped\""
   },
   "dependencies": {

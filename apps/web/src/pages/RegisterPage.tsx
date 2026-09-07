@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  RELATION_OPTIONS,
   getErrorMessage,
   splitFullName,
   validateEmail,
   validatePhone,
   validateRegistration,
+  type Gender,
 } from '@nexora/shared';
-import { Button, FormError, Input } from '../components/form/Fields.tsx';
+import { Button, FormError, Input, Select } from '../components/form/Fields.tsx';
 import { useAuth } from '../context/auth-context.ts';
 import { useToast } from '../context/ToastProvider.tsx';
 
@@ -19,6 +21,9 @@ export function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [relation, setRelation] = useState('');
+  const [relationOther, setRelationOther] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,11 +46,24 @@ export function RegisterPage() {
     const phoneError = validatePhone(phone);
     if (emailError) nextErrors.email = emailError;
     if (phoneError) nextErrors.phone = phoneError;
+    if (gender !== 'male' && gender !== 'female') nextErrors.gender = 'Select male or female.';
+    if (!relation.trim()) nextErrors.relation = 'Select your relationship.';
+    if (relation === 'other' && !relationOther.trim()) {
+      nextErrors.relationOther = 'Please describe your relationship.';
+    }
     setErrors(nextErrors);
     setFormError('');
     if (Object.keys(nextErrors).length > 0) return;
 
-    const validation = validateRegistration({ fullName, email, phone });
+    const payload = {
+      fullName,
+      email,
+      phone,
+      gender: gender as Gender,
+      relation,
+      relationOther,
+    };
+    const validation = validateRegistration(payload);
     if (!validation.valid) {
       setErrors(validation.errors);
       return;
@@ -53,7 +71,7 @@ export function RegisterPage() {
 
     setLoading(true);
     try {
-      await register({ fullName, email, phone });
+      await register(payload);
       showSuccess('Account created');
       navigate('/dashboard', { replace: true });
     } catch (error) {
@@ -68,8 +86,12 @@ export function RegisterPage() {
     <div className="onboard-screen">
       <div className="onboard-panel">
         <p className="onboard-kicker brand-color">Create Account</p>
-        <h1>{step === 1 ? 'What is your full name?' : 'How can we reach you?'}</h1>
-        <p className="muted">{step === 1 ? 'Step 1 of 2' : 'Step 2 of 2 — email and phone must be unique.'}</p>
+        <h1>{step === 1 ? 'What is your full name?' : 'Tell us about you'}</h1>
+        <p className="muted">
+          {step === 1
+            ? 'Step 1 of 2'
+            : 'Step 2 of 2 — contact details, gender, and relationship.'}
+        </p>
 
         {step === 1 ? (
           <form onSubmit={onNext} noValidate className="onboard-fade">
@@ -102,6 +124,40 @@ export function RegisterPage() {
               onChange={(event) => setPhone(event.target.value)}
               error={errors.phone}
             />
+            <Select
+              label="Gender"
+              name="gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value as Gender | '')}
+              error={errors.gender}
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </Select>
+            <Select
+              label="Relationship"
+              name="relation"
+              value={relation}
+              onChange={(event) => setRelation(event.target.value)}
+              error={errors.relation}
+            >
+              <option value="">Select relationship</option>
+              {RELATION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            {relation === 'other' ? (
+              <Input
+                label="Describe relationship"
+                name="relationOther"
+                value={relationOther}
+                onChange={(event) => setRelationOther(event.target.value)}
+                error={errors.relationOther}
+              />
+            ) : null}
             <FormError message={formError} />
             <Button type="submit" loading={loading} style={{ width: '100%' }}>
               Continue

@@ -22,6 +22,7 @@
         "backgroundColor": "#0B1220"
       },
       "package": "app.nexora.mobile",
+      "versionCode": 1,
       "permissions": [
         "READ_MEDIA_IMAGES",
         "CAMERA"
@@ -33,7 +34,7 @@
     ],
     "extra": {
       "dataSource": "api",
-      "apiUrl": "http://192.168.1.23:8787"
+      "apiUrl": "https://rupak26.netlify.app/api"
     }
   }
 }

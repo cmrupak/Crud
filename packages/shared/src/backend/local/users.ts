@@ -2,6 +2,7 @@ import { MESSAGES } from '../../constants';
 import { AppError, ERROR_CODES } from '../../errors';
 import type { ProfileUpdateInput, UserProfile } from '../../types';
 import { validateProfile } from '../../validation';
+import { avatarPath, pickAvatarId } from '../../avatar';
 import { nowIso } from '../../utils';
 import type { UserService } from '../types';
 import type { LocalDatabase } from './database';
@@ -32,12 +33,29 @@ export function createLocalUserService(db: LocalDatabase): UserService {
       await db.update((data) => {
         const user = data.users[uid];
         if (!user) throw new AppError(ERROR_CODES.NOT_FOUND, 'User was not found.');
-        updated = {
+        const firstName = input.firstName.trim();
+        const lastName = input.lastName.trim();
+        const gender =
+          input.gender === 'male' || input.gender === 'female' ? input.gender : user.gender;
+        const relationRaw = typeof input.relation === 'string' ? input.relation.trim() : user.relation;
+        const relation =
+          relationRaw === 'other'
+            ? String(input.relationOther ?? '').trim() || user.relation
+            : relationRaw;
+        const next = {
           ...user,
-          firstName: input.firstName.trim(),
-          lastName: input.lastName.trim(),
+          firstName,
+          lastName,
+          gender,
+          relation,
           updatedAt: nowIso(),
         };
+        if (!user.photoManual && gender) {
+          const avatarId = pickAvatarId(`${firstName} ${lastName}`.trim(), gender);
+          next.avatarId = avatarId;
+          next.photoURL = avatarPath(avatarId);
+        }
+        updated = next;
         data.users[uid] = updated;
         if (data.session) data.session.profile = updated;
       });

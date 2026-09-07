@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 // ---------------------------------------------------------------------------
-// Turso (kept for later server deploy — do not delete)
+// Turso (kept for later — do not delete)
 // ---------------------------------------------------------------------------
 // import { createClient, type Client } from '@libsql/client';
 // const tursoUrl = process.env.TURSO_DATABASE_URL;
@@ -42,15 +42,24 @@ function normalize(input: SqlInput): { sql: string; args: unknown[] } {
   return { sql: input.sql, args: input.args ?? [] };
 }
 
+function isRemotePostgres(connectionString: string): boolean {
+  return /supabase\.(co|com)|pooler\.supabase|sslmode=require/i.test(connectionString);
+}
+
 function createPostgresClient(): DbClient {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error(
-      'DATABASE_URL is required for local Postgres. Example: postgresql://postgres:PASSWORD@localhost:5432/nexora',
+      'DATABASE_URL is required. Use your Supabase Postgres URI (Project Settings → Database).',
     );
   }
 
-  const pool = new pg.Pool({ connectionString });
+  const pool = new pg.Pool({
+    connectionString,
+    // Supabase (and most cloud Postgres) require TLS
+    ssl: isRemotePostgres(connectionString) ? { rejectUnauthorized: false } : undefined,
+    max: 10,
+  });
 
   return {
     async execute(input) {
@@ -77,8 +86,15 @@ function createPostgresClient(): DbClient {
   };
 }
 
-/** Active driver: local Postgres. Switch to Turso later by restoring the block above. */
+/** Active driver: Postgres (local Laragon or Supabase). */
 export const db: DbClient = createPostgresClient();
+
+export function databaseLabel(): string {
+  const url = process.env.DATABASE_URL ?? '';
+  if (/supabase/i.test(url)) return 'supabase';
+  if (process.env.TURSO_DATABASE_URL) return 'turso';
+  return 'postgres';
+}
 
 export function nowIso(): string {
   return new Date().toISOString();

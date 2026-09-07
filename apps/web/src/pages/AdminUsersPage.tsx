@@ -3,12 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   DEFAULT_PAGE_SIZE,
   MESSAGES,
+  RELATION_OPTIONS,
   displayName,
   formatDate,
   formatDateTime,
   getErrorMessage,
   validateProfile,
   type AccountStatus,
+  type Gender,
   type PaginatedResult,
   type UserProfile,
   type UserRole,
@@ -18,6 +20,14 @@ import { useBackend } from '../context/backend-context.ts';
 import { useConfirm } from '../context/ConfirmProvider.tsx';
 import { useToast } from '../context/ToastProvider.tsx';
 import { useAuth } from '../context/auth-context.ts';
+
+function relationSelectState(stored: string | null | undefined) {
+  if (!stored) return { relation: '', relationOther: '' };
+  if (RELATION_OPTIONS.some((option) => option.value === stored)) {
+    return { relation: stored, relationOther: '' };
+  }
+  return { relation: 'other', relationOther: stored };
+}
 
 export function AdminUsersPage() {
   const backend = useBackend();
@@ -190,6 +200,9 @@ export function AdminUserDetailPage() {
   const [error, setError] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [relation, setRelation] = useState('');
+  const [relationOther, setRelationOther] = useState('');
   const [role, setRole] = useState<UserRole>('user');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -205,6 +218,10 @@ export function AdminUserDetailPage() {
         setUser(profile);
         setFirstName(profile.firstName);
         setLastName(profile.lastName);
+        setGender(profile.gender ?? '');
+        const next = relationSelectState(profile.relation);
+        setRelation(next.relation);
+        setRelationOther(next.relationOther);
         setRole(profile.role);
       })
       .catch((err: unknown) => {
@@ -218,12 +235,31 @@ export function AdminUserDetailPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!user) return;
-    const validation = validateProfile({ firstName, lastName });
-    setErrors(validation.errors);
-    if (!validation.valid) return;
+    const nextErrors: Record<string, string> = {};
+    if (gender !== 'male' && gender !== 'female') nextErrors.gender = 'Select male or female.';
+    if (!relation.trim()) nextErrors.relation = 'Select a relationship.';
+    if (relation === 'other' && !relationOther.trim()) {
+      nextErrors.relationOther = 'Please describe the relationship.';
+    }
+    const validation = validateProfile({
+      firstName,
+      lastName,
+      gender: gender || null,
+      relation,
+      relationOther,
+    });
+    setErrors({ ...validation.errors, ...nextErrors });
+    if (!validation.valid || Object.keys(nextErrors).length > 0) return;
     setSaving(true);
     try {
-      const updated = await backend.admin.updateUser(user.uid, { firstName, lastName, role });
+      const updated = await backend.admin.updateUser(user.uid, {
+        firstName,
+        lastName,
+        gender: gender as Gender,
+        relation,
+        relationOther,
+        role,
+      });
       setUser(updated);
       showSuccess(MESSAGES.USER_UPDATED);
     } catch (err) {
@@ -257,6 +293,40 @@ export function AdminUserDetailPage() {
             onChange={(event) => setLastName(event.target.value)}
             error={errors.lastName}
           />
+          <Select
+            label="Gender"
+            name="gender"
+            value={gender}
+            onChange={(event) => setGender(event.target.value as Gender | '')}
+            error={errors.gender}
+          >
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </Select>
+          <Select
+            label="Relationship"
+            name="relation"
+            value={relation}
+            onChange={(event) => setRelation(event.target.value)}
+            error={errors.relation}
+          >
+            <option value="">Select relationship</option>
+            {RELATION_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          {relation === 'other' ? (
+            <Input
+              label="Describe relationship"
+              name="relationOther"
+              value={relationOther}
+              onChange={(event) => setRelationOther(event.target.value)}
+              error={errors.relationOther}
+            />
+          ) : null}
           <Select
             label="Role"
             name="role"

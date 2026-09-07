@@ -53,6 +53,14 @@ export function createLocalAdminService(db: LocalDatabase): AdminService {
           ...user,
           firstName: input.firstName.trim(),
           lastName: input.lastName.trim(),
+          gender:
+            input.gender === 'male' || input.gender === 'female' ? input.gender : user.gender,
+          relation:
+            typeof input.relation === 'string'
+              ? input.relation === 'other'
+                ? String(input.relationOther ?? '').trim() || user.relation
+                : input.relation.trim()
+              : user.relation,
           role: input.role ?? user.role,
           updatedAt: nowIso(),
         };

@@ -1,0 +1,23 @@
+# Deploy: https://dashboard.render.com → New → Blueprint → cmrupak/Crud
+# After first deploy, set DATABASE_URL in Render Dashboard to your Supabase URI.
+services:
+  - type: web
+    name: crud-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm run start --workspace=@nexora/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: https://rupak26.netlify.app,http://localhost:5173,*
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

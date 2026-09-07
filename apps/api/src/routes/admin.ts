@@ -59,9 +59,29 @@ adminRouter.patch(
     if (role && uid === req.user!.uid) {
       throw new AppError(ERROR_CODES.FORBIDDEN, 'You cannot change your own role.');
     }
+
+    const current = await getUserByUid(uid);
+    if (!current) throw new AppError(ERROR_CODES.NOT_FOUND, 'User was not found.');
+
+    const gender =
+      req.body.gender === 'male' || req.body.gender === 'female' ? req.body.gender : current.gender;
+    const relationRaw = typeof req.body.relation === 'string' ? req.body.relation.trim() : current.relation;
+    const relation =
+      relationRaw === 'other'
+        ? String(req.body.relationOther ?? '').trim() || current.relation
+        : relationRaw;
+
     await db.execute({
-      sql: `UPDATE users SET first_name = ?, last_name = ?, role = COALESCE(?, role), updated_at = ? WHERE uid = ?`,
-      args: [req.body.firstName.trim(), req.body.lastName.trim(), role ?? null, nowIso(), uid],
+      sql: `UPDATE users SET first_name = ?, last_name = ?, gender = ?, relation = ?, role = COALESCE(?, role), updated_at = ? WHERE uid = ?`,
+      args: [
+        req.body.firstName.trim(),
+        req.body.lastName.trim(),
+        gender,
+        relation,
+        role ?? null,
+        nowIso(),
+        uid,
+      ],
     });
     await writeAudit({ action: 'USER_UPDATED', performedBy: req.user!.uid, targetUser: uid });
     if (role) {

@@ -1,19 +1,29 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   MESSAGES,
+  RELATION_OPTIONS,
   displayName,
   displayRelation,
   getErrorMessage,
   resolveProfilePhotoUrl,
   validateProfile,
+  type Gender,
 } from '@nexora/shared';
-import { Button, FileUpload, FormError, Input } from '../components/form/Fields.tsx';
+import { Button, FileUpload, FormError, Input, Select } from '../components/form/Fields.tsx';
 import { useAuth } from '../context/auth-context.ts';
 import { useBackend } from '../context/backend-context.ts';
 import { useConfirm } from '../context/ConfirmProvider.tsx';
 import { useToast } from '../context/ToastProvider.tsx';
 import { useNavigate } from 'react-router-dom';
-import { getApiBaseUrl } from '../services/api-url.ts';
+import { getAssetBaseUrl } from '../services/api-url.ts';
+
+function relationSelectState(stored: string | null | undefined) {
+  if (!stored) return { relation: '', relationOther: '' };
+  if (RELATION_OPTIONS.some((option) => option.value === stored)) {
+    return { relation: stored, relationOther: '' };
+  }
+  return { relation: 'other', relationOther: stored };
+}
 
 export function ProfilePage() {
   const { user, refreshUser, logout } = useAuth();
@@ -23,6 +33,10 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
+  const [gender, setGender] = useState<Gender | ''>(user?.gender ?? '');
+  const initialRelation = relationSelectState(user?.relation);
+  const [relation, setRelation] = useState(initialRelation.relation);
+  const [relationOther, setRelationOther] = useState(initialRelation.relationOther);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -36,23 +50,55 @@ export function ProfilePage() {
               avatarId: user.avatarId,
               photoManual: user.photoManual,
             },
-            getApiBaseUrl(),
+            getAssetBaseUrl(),
           )
         : null,
     [user],
   );
+
+  useEffect(() => {
+    void refreshUser();
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (!user) return;
+    setFirstName(user.firstName);
+    setLastName(user.lastName);
+    setGender(user.gender ?? '');
+    const next = relationSelectState(user.relation);
+    setRelation(next.relation);
+    setRelationOther(next.relationOther);
+  }, [user]);
 
   if (!user) return null;
   const profile = user;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    const validation = validateProfile({ firstName, lastName });
-    setErrors(validation.errors);
-    if (!validation.valid) return;
+    const nextErrors: Record<string, string> = {};
+    if (gender !== 'male' && gender !== 'female') nextErrors.gender = 'Select male or female.';
+    if (!relation.trim()) nextErrors.relation = 'Select your relationship.';
+    if (relation === 'other' && !relationOther.trim()) {
+      nextErrors.relationOther = 'Please describe your relationship.';
+    }
+    const validation = validateProfile({
+      firstName,
+      lastName,
+      gender: gender || null,
+      relation,
+      relationOther,
+    });
+    setErrors({ ...validation.errors, ...nextErrors });
+    if (!validation.valid || Object.keys(nextErrors).length > 0) return;
     setSaving(true);
     try {
-      await backend.users.updateProfile(profile.uid, { firstName, lastName });
+      await backend.users.updateProfile(profile.uid, {
+        firstName,
+        lastName,
+        gender: gender as Gender,
+        relation,
+        relationOther,
+      });
       await refreshUser();
       showSuccess(MESSAGES.PROFILE_UPDATED);
     } catch (error) {
@@ -135,6 +181,40 @@ export function ProfilePage() {
           />
           <Input label="Email" name="email" value={profile.email} disabled />
           <Input label="Phone" name="phone" value={profile.phone ?? '—'} disabled />
+          <Select
+            label="Gender"
+            name="gender"
+            value={gender}
+            onChange={(event) => setGender(event.target.value as Gender | '')}
+            error={errors.gender}
+          >
+            <option value="">Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </Select>
+          <Select
+            label="Relationship"
+            name="relation"
+            value={relation}
+            onChange={(event) => setRelation(event.target.value)}
+            error={errors.relation}
+          >
+            <option value="">Select relationship</option>
+            {RELATION_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          {relation === 'other' ? (
+            <Input
+              label="Describe relationship"
+              name="relationOther"
+              value={relationOther}
+              onChange={(event) => setRelationOther(event.target.value)}
+              error={errors.relationOther}
+            />
+          ) : null}
           <FileUpload
             label={uploading ? 'Uploading...' : 'Profile photo'}
             name="photo"

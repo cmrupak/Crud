@@ -1,0 +1,35 @@
+# Netlify hosts web SPA + Express API (function) against Supabase Postgres.
+#
+# Required environment variables in Netlify UI:
+#   VITE_DATA_SOURCE=api
+#   VITE_API_URL=https://rupak26.netlify.app/api
+#   DATABASE_URL=postgresql://postgres.cozqexdsqxarznnrojdv:...@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+#   JWT_SECRET=<long random string>
+#   CORS_ORIGIN=https://rupak26.netlify.app,http://localhost:5173,*
+
+[build]
+  base = "."
+  command = "node scripts/copy-avatars.mjs && npm run build --workspace=@nexora/web"
+  publish = "apps/web/dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  VITE_DATA_SOURCE = "api"
+  VITE_API_URL = "https://rupak26.netlify.app/api"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pg", "pg-native"]
+  included_files = ["apps/api/src/**", "packages/shared/src/**"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

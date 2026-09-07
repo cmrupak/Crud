@@ -12,7 +12,7 @@ import {
 import { Button, FormError, Input } from '../components/form/Fields.tsx';
 import { useAuth } from '../context/auth-context.ts';
 import { useToast } from '../context/ToastProvider.tsx';
-import { getApiBaseUrl } from '../services/api-url.ts';
+import { getAssetBaseUrl } from '../services/api-url.ts';
 
 export function SetupProfilePage() {
   const { user, setupProfile, skipProfileSetup } = useAuth();
@@ -37,7 +37,7 @@ export function SetupProfilePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
-  const apiBase = useMemo(() => getApiBaseUrl(), []);
+  const apiBase = useMemo(() => getAssetBaseUrl(), []);
 
   useEffect(() => {
     if (!user) navigate('/login', { replace: true });

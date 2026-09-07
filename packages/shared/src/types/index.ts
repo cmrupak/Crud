@@ -5,16 +5,63 @@ export type DataSource = 'local' | 'api';
 export type Gender = 'male' | 'female';
 
 export const RELATION_OPTIONS = [
-  { value: 'cousin', label: 'Cousin' },
-  { value: 'brother', label: 'Brother' },
-  { value: 'sister', label: 'Sister' },
   { value: 'father', label: 'Father' },
   { value: 'mother', label: 'Mother' },
+  { value: 'son', label: 'Son' },
+  { value: 'daughter', label: 'Daughter' },
+  { value: 'brother', label: 'Brother' },
+  { value: 'sister', label: 'Sister' },
+  { value: 'husband', label: 'Husband' },
+  { value: 'wife', label: 'Wife' },
+  { value: 'spouse', label: 'Spouse' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'fiance', label: 'Fiancé' },
+  { value: 'fiancee', label: 'Fiancée' },
+  { value: 'grandfather', label: 'Grandfather' },
+  { value: 'grandmother', label: 'Grandmother' },
+  { value: 'great_grandfather', label: 'Great-grandfather' },
+  { value: 'great_grandmother', label: 'Great-grandmother' },
+  { value: 'grandson', label: 'Grandson' },
+  { value: 'granddaughter', label: 'Granddaughter' },
   { value: 'uncle', label: 'Uncle' },
   { value: 'aunt', label: 'Aunt' },
-  { value: 'office_colleague', label: 'Office colleague' },
+  { value: 'nephew', label: 'Nephew' },
+  { value: 'niece', label: 'Niece' },
+  { value: 'cousin', label: 'Cousin' },
+  { value: 'stepfather', label: 'Stepfather' },
+  { value: 'stepmother', label: 'Stepmother' },
+  { value: 'stepson', label: 'Stepson' },
+  { value: 'stepdaughter', label: 'Stepdaughter' },
+  { value: 'stepbrother', label: 'Stepbrother' },
+  { value: 'stepsister', label: 'Stepsister' },
+  { value: 'half_brother', label: 'Half-brother' },
+  { value: 'half_sister', label: 'Half-sister' },
+  { value: 'father_in_law', label: 'Father-in-law' },
+  { value: 'mother_in_law', label: 'Mother-in-law' },
+  { value: 'brother_in_law', label: 'Brother-in-law' },
+  { value: 'sister_in_law', label: 'Sister-in-law' },
+  { value: 'son_in_law', label: 'Son-in-law' },
+  { value: 'daughter_in_law', label: 'Daughter-in-law' },
+  { value: 'godfather', label: 'Godfather' },
+  { value: 'godmother', label: 'Godmother' },
+  { value: 'godson', label: 'Godson' },
+  { value: 'goddaughter', label: 'Goddaughter' },
   { value: 'friend', label: 'Friend' },
+  { value: 'best_friend', label: 'Best friend' },
   { value: 'neighbor', label: 'Neighbor' },
+  { value: 'roommate', label: 'Roommate' },
+  { value: 'classmate', label: 'Classmate' },
+  { value: 'office_colleague', label: 'Office colleague' },
+  { value: 'boss', label: 'Boss / Manager' },
+  { value: 'employee', label: 'Employee' },
+  { value: 'business_partner', label: 'Business partner' },
+  { value: 'client', label: 'Client' },
+  { value: 'mentor', label: 'Mentor' },
+  { value: 'mentee', label: 'Mentee' },
+  { value: 'guardian', label: 'Guardian' },
+  { value: 'ward', label: 'Ward' },
+  { value: 'relative', label: 'Relative' },
+  { value: 'acquaintance', label: 'Acquaintance' },
   { value: 'other', label: 'Other' },
 ] as const;
 
@@ -96,6 +143,9 @@ export interface RegisterInput {
   fullName: string;
   email: string;
   phone: string;
+  gender: Gender;
+  relation: string;
+  relationOther?: string;
 }
 
 /** @deprecated password login retained for legacy local demos */
@@ -114,6 +164,9 @@ export interface RecordInput {
 export interface ProfileUpdateInput {
   firstName: string;
   lastName: string;
+  gender?: Gender | null;
+  relation?: string;
+  relationOther?: string;
 }
 
 export interface ProfileSetupInput {

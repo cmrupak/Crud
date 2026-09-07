@@ -18,6 +18,8 @@
     "db:setup": "npm run db:setup --workspace=@nexora/api",
     "build": "npm run build --workspace=@nexora/web",
     "build:web": "npm run build --workspace=@nexora/web",
+    "build:apk": "npm run build:apk --workspace=@nexora/mobile",
+    "build:playstore": "npm run build:playstore --workspace=@nexora/mobile",
     "preview": "npm run preview --workspace=@nexora/web",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write .",

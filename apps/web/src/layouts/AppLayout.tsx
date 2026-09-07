@@ -1,8 +1,9 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useState, type ReactNode } from 'react';
-import { APP_WEB_NAME, MESSAGES, displayName } from '@nexora/shared';
+import { useMemo, useState, type ReactNode } from 'react';
+import { APP_WEB_NAME, MESSAGES, displayName, resolveProfilePhotoUrl } from '@nexora/shared';
 import { useAuth } from '../context/auth-context.ts';
 import { useToast } from '../context/ToastProvider.tsx';
+import { getAssetBaseUrl } from '../services/api-url.ts';
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -22,6 +23,20 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const isAdmin = user?.role === 'admin';
+  const photoUri = useMemo(
+    () =>
+      user
+        ? resolveProfilePhotoUrl(
+            {
+              photoURL: user.photoURL,
+              avatarId: user.avatarId,
+              photoManual: user.photoManual,
+            },
+            getAssetBaseUrl(),
+          )
+        : null,
+    [user],
+  );
 
   async function handleLogout() {
     await logout();
@@ -80,11 +95,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="user-chip">
             <div className="avatar">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="" />
-              ) : (
-                user?.firstName?.charAt(0)
-              )}
+              {photoUri ? <img src={photoUri} alt="" /> : user?.firstName?.charAt(0)}
             </div>
             <div>
               <strong>{user ? displayName(user) : ''}</strong>

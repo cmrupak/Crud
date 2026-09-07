@@ -169,6 +169,10 @@ export function createLocalAuthService(db: LocalDatabase): AuthService {
 
       const uid = createId('user');
       const now = nowIso();
+      const fullName = `${firstName} ${lastName}`.trim();
+      const relation =
+        input.relation === 'other' ? String(input.relationOther ?? '').trim() : input.relation;
+      const avatarId = pickAvatarId(fullName, input.gender);
       const profile = withDefaults({
         uid,
         firstName,
@@ -177,6 +181,12 @@ export function createLocalAuthService(db: LocalDatabase): AuthService {
         phone,
         role: 'user',
         status: 'active',
+        gender: input.gender,
+        relation,
+        avatarId,
+        photoURL: avatarPath(avatarId),
+        photoManual: false,
+        profileSetupComplete: true,
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,

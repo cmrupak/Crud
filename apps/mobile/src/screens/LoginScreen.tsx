@@ -15,15 +15,16 @@ import {
   getErrorMessage,
   resolveProfilePhotoUrl,
   validateIdentify,
-  validateRegistration,
   type LoginCandidate,
 } from '@nexora/shared';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { getApiUrl } from '../services/backend';
 import { colors } from '../theme';
 
 export function LoginScreen() {
-  const { identify, loginByUid, register } = useAuth();
+  const { identify, loginByUid } = useAuth();
+  const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -54,21 +55,6 @@ export function LoginScreen() {
     }
   }
 
-  async function onCreate() {
-    const validation = validateRegistration({ fullName: name, email, phone });
-    if (!validation.valid) {
-      Alert.alert('Create account', Object.values(validation.errors).join('\n'));
-      return;
-    }
-    setLoading(true);
-    try {
-      await register({ fullName: name, email, phone });
-    } catch (error) {
-      Alert.alert('Unable to create account', getErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function onPick(uid: string) {
     setLoading(true);
@@ -115,7 +101,7 @@ export function LoginScreen() {
         <Pressable style={styles.button} onPress={() => void onContinue()} disabled={loading}>
           <Text style={styles.buttonText}>{loading ? 'Please wait...' : 'Continue'}</Text>
         </Pressable>
-        <Pressable style={styles.secondary} onPress={() => void onCreate()} disabled={loading}>
+        <Pressable style={styles.secondary} onPress={() => navigation.navigate('RegisterWizard')}>
           <Text style={styles.secondaryText}>Create account</Text>
         </Pressable>
 

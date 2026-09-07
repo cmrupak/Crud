@@ -46,6 +46,13 @@ export function validateRegistration(input: RegisterInput): ValidationResult {
   if (emailError) errors.email = emailError;
   const phoneError = validatePhone(input.phone);
   if (phoneError) errors.phone = phoneError;
+  if (input.gender !== 'male' && input.gender !== 'female') {
+    errors.gender = 'Select male or female.';
+  }
+  if (!input.relation?.trim()) errors.relation = 'Select your relationship.';
+  if (input.relation === 'other' && !input.relationOther?.trim()) {
+    errors.relationOther = 'Please describe your relationship.';
+  }
   return result(errors);
 }
 
@@ -95,6 +102,12 @@ export function validateProfile(input: ProfileUpdateInput): ValidationResult {
   const errors: FieldErrors = {};
   if (!input.firstName.trim()) errors.firstName = 'First name is required.';
   if (!input.lastName.trim()) errors.lastName = 'Last name is required.';
+  if (input.gender != null && input.gender !== 'male' && input.gender !== 'female') {
+    errors.gender = 'Select male or female.';
+  }
+  if (input.relation === 'other' && !input.relationOther?.trim()) {
+    errors.relationOther = 'Please describe your relationship.';
+  }
   return result(errors);
 }
 

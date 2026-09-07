@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AppError, ERROR_CODES, validateProfile } from '@nexora/shared';
+import { AppError, ERROR_CODES, avatarPath, pickAvatarId, validateProfile } from '@nexora/shared';
 import { getUserByUid, writeAudit } from '../auth.ts';
 import { db, nowIso } from '../db.ts';
 import { asyncHandler, requireAuth, type AuthedRequest } from '../middleware.ts';
@@ -32,10 +32,34 @@ usersRouter.patch(
     if (!validation.valid) {
       throw new AppError(ERROR_CODES.VALIDATION, 'Please fix the highlighted fields.', validation.errors);
     }
-    await db.execute({
-      sql: 'UPDATE users SET first_name = ?, last_name = ?, updated_at = ? WHERE uid = ?',
-      args: [req.body.firstName.trim(), req.body.lastName.trim(), nowIso(), uid],
-    });
+
+    const current = await getUserByUid(uid);
+    if (!current) throw new AppError(ERROR_CODES.NOT_FOUND, 'User was not found.');
+
+    const firstName = req.body.firstName.trim();
+    const lastName = req.body.lastName.trim();
+    const gender =
+      req.body.gender === 'male' || req.body.gender === 'female' ? req.body.gender : current.gender;
+    const relationRaw = typeof req.body.relation === 'string' ? req.body.relation.trim() : current.relation;
+    const relation =
+      relationRaw === 'other'
+        ? String(req.body.relationOther ?? '').trim() || current.relation
+        : relationRaw;
+    const now = nowIso();
+
+    if (!current.photoManual) {
+      const avatarId = pickAvatarId(`${firstName} ${lastName}`.trim(), gender);
+      await db.execute({
+        sql: `UPDATE users SET first_name = ?, last_name = ?, gender = ?, relation = ?, avatar_id = ?, photo_url = ?, updated_at = ? WHERE uid = ?`,
+        args: [firstName, lastName, gender, relation, avatarId, avatarPath(avatarId), now, uid],
+      });
+    } else {
+      await db.execute({
+        sql: 'UPDATE users SET first_name = ?, last_name = ?, gender = ?, relation = ?, updated_at = ? WHERE uid = ?',
+        args: [firstName, lastName, gender, relation, now, uid],
+      });
+    }
+
     await writeAudit({ action: 'USER_UPDATED', performedBy: uid, targetUser: uid });
     res.json({ user: await getUserByUid(uid) });
   }),

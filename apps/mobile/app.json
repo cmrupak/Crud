@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "CRUD",
+    "slug": "crud-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1220"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.nexora.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B1220"
+      },
+      "package": "app.nexora.mobile",
+      "permissions": [
+        "READ_MEDIA_IMAGES",
+        "CAMERA"
+      ]
+    },
+    "scheme": "nexora",
+    "plugins": [
+      "expo-image-picker"
+    ],
+    "extra": {
+      "dataSource": "api",
+      "apiUrl": "http://192.168.1.23:8787"
+    }
+  }
+}

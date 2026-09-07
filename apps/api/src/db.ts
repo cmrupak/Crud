@@ -1,6 +1,5 @@
 import { config } from 'dotenv';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import pg from 'pg';
 
 // ---------------------------------------------------------------------------
@@ -15,8 +14,10 @@ import pg from 'pg';
 // export const db: Client = createClient({ url: tursoUrl, authToken: tursoToken });
 // ---------------------------------------------------------------------------
 
-const here = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(here, '../.env') });
+// Load local .env when present. On Netlify, env vars come from the dashboard.
+config({ path: resolve(process.cwd(), 'apps/api/.env') });
+config({ path: resolve(process.cwd(), '.env') });
+config();
 
 type SqlInput = string | { sql: string; args?: unknown[] };
 

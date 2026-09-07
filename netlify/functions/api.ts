@@ -8,7 +8,7 @@ let cached: ServerlessHandler | null = null;
 async function getServerlessHandler(): Promise<ServerlessHandler> {
   if (cached) return cached;
   const app = await createApp({ serveAvatars: false });
-  cached = serverless(app, { basePath: '/api' });
+  cached = serverless(app);
   return cached;
 }
 

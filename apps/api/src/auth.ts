@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import {
@@ -13,8 +10,8 @@ import {
   type AccountStatus,
 } from '@nexora/shared';
 import { createId, db, nowIso } from './db.ts';
+import { SCHEMA_SQL } from './schema.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
 const jwtSecret = new TextEncoder().encode(
   process.env.JWT_SECRET ?? 'nexora-dev-jwt-secret-change-in-production',
 );
@@ -213,9 +210,7 @@ async function ensureSchemaUpgrades(): Promise<void> {
 }
 
 export async function runMigrations(): Promise<void> {
-  const sql = readFileSync(resolve(here, 'schema.sql'), 'utf8');
-  const statements = sql
-    .split(';')
+  const statements = SCHEMA_SQL.split(';')
     .map((part) => part.trim())
     .filter(Boolean);
 

@@ -1,7 +1,6 @@
 import cors from 'cors';
 import express, { type Express } from 'express';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { runMigrations } from './auth.ts';
 import { databaseLabel } from './db.ts';
 import { sendError } from './middleware.ts';
@@ -11,9 +10,6 @@ import { recordsRouter } from './routes/records.ts';
 import { statsRouter } from './routes/stats.ts';
 import { usersRouter } from './routes/users.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const avatarsDir = resolve(here, '../../../avatars/id');
-
 export async function createApp(options?: { serveAvatars?: boolean }): Promise<Express> {
   await runMigrations();
 
@@ -22,6 +18,18 @@ export async function createApp(options?: { serveAvatars?: boolean }): Promise<E
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
+
+  // Netlify function paths may include /.netlify/functions/api or /api prefixes
+  app.use((req, _res, next) => {
+    const prefixes = ['/.netlify/functions/api', '/api'];
+    for (const prefix of prefixes) {
+      if (req.url === prefix || req.url.startsWith(`${prefix}/`)) {
+        req.url = req.url.slice(prefix.length) || '/';
+        break;
+      }
+    }
+    next();
+  });
 
   app.use(
     cors({
@@ -38,6 +46,7 @@ export async function createApp(options?: { serveAvatars?: boolean }): Promise<E
   app.use(express.json({ limit: '3mb' }));
 
   if (options?.serveAvatars !== false) {
+    const avatarsDir = resolve(process.cwd(), 'avatars/id');
     app.use('/avatars', express.static(avatarsDir));
   }
 

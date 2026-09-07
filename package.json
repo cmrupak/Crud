@@ -1,0 +1,41 @@
+{
+  "name": "nexora",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Nexora — full-stack CRUD application (web, mobile, Turso)",
+  "workspaces": [
+    "apps/web",
+    "apps/mobile",
+    "apps/api",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@nexora/web",
+    "dev:web": "npm run dev --workspace=@nexora/web",
+    "dev:api": "npm run dev --workspace=@nexora/api",
+    "dev:mobile": "npm run start --workspace=@nexora/mobile",
+    "migrate:turso": "npm run migrate --workspace=@nexora/api",
+    "db:setup": "npm run db:setup --workspace=@nexora/api",
+    "build": "npm run build --workspace=@nexora/web",
+    "build:web": "npm run build --workspace=@nexora/web",
+    "preview": "npm run preview --workspace=@nexora/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "eslint": "^9.24.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.29.1"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@nexora/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "migrate": "tsx src/migrate.ts",
+    "db:setup": "tsx src/setup-postgres.ts",
+    "lint": "echo \"api lint skipped\""
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.15",
+    "@nexora/shared": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jose": "^6.0.11",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@types/node": "^24.13.3",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.2"
+  }
+}

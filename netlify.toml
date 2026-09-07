@@ -7,7 +7,7 @@
 
 [build]
   base = "."
-  command = "node scripts/copy-avatars.mjs && npm run build --workspace=@nexora/web"
+  command = "npm install && node scripts/copy-avatars.mjs && npm run build --workspace=@nexora/web"
   publish = "apps/web/dist"
   functions = "netlify/functions"
 

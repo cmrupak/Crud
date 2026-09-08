@@ -10,7 +10,8 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
 ];
-config.resolver.disableHierarchicalLookup = true;
+// Keep hierarchical lookup so nested deps (e.g. is-arrayish via color) resolve in monorepos
+config.resolver.disableHierarchicalLookup = false;
 config.resolver.extraNodeModules = {
   '@nexora/shared': path.resolve(workspaceRoot, 'packages/shared/src'),
 };

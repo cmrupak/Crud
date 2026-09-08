@@ -44,7 +44,8 @@ export function DashboardPage() {
       <p className="page-sub">
         {user?.role === 'admin'
           ? 'You have administrator access to users and all records.'
-          : 'Create and manage your records from one dashboard.'}
+          : 'Create and manage your records from one dashboard.'}{' '}
+        <Link to="/download-app">Download the Android app</Link>
       </p>
       {loading ? (
         <div className="stats-grid">

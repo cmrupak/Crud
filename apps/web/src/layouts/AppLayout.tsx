@@ -9,6 +9,7 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/records', label: 'Records' },
   { to: '/profile', label: 'Profile' },
+  { to: '/download-app', label: 'Download app' },
 ];
 
 const ADMIN_NAV = [

@@ -25,6 +25,14 @@ export function WelcomePage() {
           <button type="button" className="btn btn-primary onboard-cta" onClick={() => navigate('/login')}>
             Get Started
           </button>
+          <button
+            type="button"
+            className="btn btn-secondary onboard-cta"
+            style={{ marginTop: 12 }}
+            onClick={() => navigate('/download-app')}
+          >
+            Download Android app
+          </button>
         </div>
       </div>
     </div>

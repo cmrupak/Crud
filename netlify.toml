@@ -27,6 +27,12 @@
   status = 200
   force = true
 
+# Keep APK/static downloads from being swallowed by the SPA fallback
+[[redirects]]
+  from = "/downloads/*"
+  to = "/downloads/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

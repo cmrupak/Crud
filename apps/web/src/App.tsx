@@ -10,6 +10,7 @@ import { RecordsPage } from './pages/RecordsPage.tsx';
 import { RecordDetailPage, RecordFormPage } from './pages/RecordFormPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { AdminUserDetailPage, AdminUsersPage } from './pages/AdminUsersPage.tsx';
+import { DownloadAppPage } from './pages/DownloadAppPage.tsx';
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ function RootRedirect() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/download-app" element={<DownloadAppPage />} />
       <Route element={<GuestRoute />}>
         <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/get-started" element={<Navigate to="/welcome" replace />} />

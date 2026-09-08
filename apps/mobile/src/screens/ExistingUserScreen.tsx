@@ -77,6 +77,7 @@ export function ExistingUserScreen() {
         <Text style={styles.kicker}>Login</Text>
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.sub}>Enter first name, full name, email, or phone.</Text>
+        <Text style={[styles.sub, { fontSize: 12 }]}>API: {getApiUrl()}</Text>
 
         <View style={styles.inputWrap}>
           <TextInput

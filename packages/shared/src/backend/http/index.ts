@@ -45,18 +45,31 @@ export function createHttpBackend(options: {
     let response: Response;
     try {
       response = await fetch(`${baseUrl}${path}`, { ...init, headers });
-    } catch {
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'network error';
       throw new AppError(
         ERROR_CODES.UNKNOWN,
-        `Cannot reach API at ${baseUrl}. Is the API running, and is your phone on the same Wi‑Fi?`,
+        `Cannot reach API at ${baseUrl}${path} (${detail}). Check internet connection.`,
       );
     }
-    const data = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
+
+    const raw = await response.text();
+    let data = {} as T & ApiErrorBody;
+    if (raw) {
+      try {
+        data = JSON.parse(raw) as T & ApiErrorBody;
+      } catch {
+        throw new AppError(
+          ERROR_CODES.UNKNOWN,
+          `API returned non-JSON (${response.status}) from ${baseUrl}${path}.`,
+        );
+      }
+    }
 
     if (!response.ok) {
       throw new AppError(
         (data.code as ErrorCode) ?? ERROR_CODES.UNKNOWN,
-        data.message ?? 'Request failed.',
+        data.message ?? `Request failed (${response.status}).`,
         data.fieldErrors,
       );
     }

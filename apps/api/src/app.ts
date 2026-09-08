@@ -11,7 +11,13 @@ import { statsRouter } from './routes/stats.ts';
 import { usersRouter } from './routes/users.ts';
 
 export async function createApp(options?: { serveAvatars?: boolean }): Promise<Express> {
-  await runMigrations();
+  // On Netlify, tables are already created in Supabase — skip migrations on cold start
+  // so mobile requests don't hit the free-tier function timeout.
+  const skipMigrations =
+    process.env.NETLIFY === 'true' || process.env.SKIP_MIGRATIONS === '1';
+  if (!skipMigrations) {
+    await runMigrations();
+  }
 
   const app = express();
   const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')

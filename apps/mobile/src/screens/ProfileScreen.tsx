@@ -12,7 +12,13 @@ import {
   type Gender,
 } from '@nexora/shared';
 import { useAuth } from '../context/AuthContext';
-import { getApiUrl, getAssetUrl, getBackend } from '../services/backend';
+import {
+  checkForAppUpdate,
+  getInstalledVersionCode,
+  getInstalledVersionName,
+  installAppUpdate,
+} from '../services/appUpdate';
+import { getAssetUrl, getBackend } from '../services/backend';
 import { styles } from './LoginScreen';
 import { colors } from '../theme';
 
@@ -33,6 +39,7 @@ export function ProfileScreen() {
   const [relation, setRelation] = useState(initialRelation.relation);
   const [relationOther, setRelationOther] = useState(initialRelation.relationOther);
   const [saving, setSaving] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const photoUri = useMemo(
     () =>
       user
@@ -131,6 +138,46 @@ export function ProfileScreen() {
     ]);
   }
 
+  async function onCheckUpdate() {
+    setCheckingUpdate(true);
+    try {
+      const result = await checkForAppUpdate();
+      if (result.status === 'unavailable') {
+        Alert.alert('Update check', result.message);
+        return;
+      }
+      if (result.status === 'up_to_date') {
+        Alert.alert(
+          'Up to date',
+          `You have the latest app (v${getInstalledVersionName()} / ${getInstalledVersionCode()}).`,
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Update available',
+        `Version ${result.latest.version} is ready.${result.latest.notes ? `\n\n${result.latest.notes}` : ''}\n\nDownload and install now?`,
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Update',
+            onPress: () => {
+              void (async () => {
+                try {
+                  await installAppUpdate(result.latest);
+                } catch (error) {
+                  Alert.alert('Update failed', getErrorMessage(error));
+                }
+              })();
+            },
+          },
+        ],
+      );
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.wrap}>
       <Text style={styles.title}>Profile</Text>
@@ -158,6 +205,8 @@ export function ProfileScreen() {
         {displayRelation(user.relation) || 'Relation not set'}
         {' · '}
         {user.role}
+        {'\n'}
+        App v{getInstalledVersionName()} ({getInstalledVersionCode()})
       </Text>
       <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" />
       <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" />
@@ -216,6 +265,9 @@ export function ProfileScreen() {
       </Pressable>
       <Pressable style={styles.button} onPress={() => void pickImage()}>
         <Text style={styles.buttonText}>Upload photo</Text>
+      </Pressable>
+      <Pressable style={styles.button} onPress={() => void onCheckUpdate()} disabled={checkingUpdate}>
+        <Text style={styles.buttonText}>{checkingUpdate ? 'Checking…' : 'Check for updates'}</Text>
       </Pressable>
       <Pressable style={styles.button} onPress={() => void logout()}>
         <Text style={styles.buttonText}>Logout</Text>

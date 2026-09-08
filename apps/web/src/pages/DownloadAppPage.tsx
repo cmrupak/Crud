@@ -1,15 +1,35 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-function getApkUrl(): string {
+type AppUpdateInfo = {
+  version: string;
+  versionCode: number;
+  apkUrl: string;
+  notes?: string;
+};
+
+function getFallbackApkUrl(): string {
   const fromEnv = import.meta.env.VITE_ANDROID_APK_URL?.trim();
   if (fromEnv) return fromEnv;
   return '/downloads/crud-android.apk';
 }
 
 export function DownloadAppPage() {
-  const apkUrl = useMemo(() => getApkUrl(), []);
+  const [info, setInfo] = useState<AppUpdateInfo | null>(null);
   const isAndroid = useMemo(() => /android/i.test(navigator.userAgent), []);
+  const apkUrl = info?.apkUrl || getFallbackApkUrl();
+
+  useEffect(() => {
+    void fetch('/app-update.json', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as AppUpdateInfo;
+      })
+      .then((data) => {
+        if (data?.apkUrl) setInfo(data);
+      })
+      .catch(() => undefined);
+  }, []);
 
   return (
     <div className="onboard-screen">
@@ -18,6 +38,13 @@ export function DownloadAppPage() {
         <h1>Download the Android app</h1>
         <p className="muted">
           Free install — no Play Store fee. Download the APK, then allow install from this browser.
+          {info ? (
+            <>
+              <br />
+              Latest: <strong>v{info.version}</strong>
+              {info.notes ? ` — ${info.notes}` : ''}
+            </>
+          ) : null}
         </p>
 
         <a className="btn btn-primary" href={apkUrl} download="crud-android.apk" style={{ width: '100%', textAlign: 'center' }}>
@@ -33,7 +60,7 @@ export function DownloadAppPage() {
             <li>Tap <strong>Install</strong>, then <strong>Open</strong>.</li>
           </ol>
           <p className="muted" style={{ marginBottom: 0, marginTop: 12 }}>
-            Browsers cannot auto-install apps silently. One tap on Install after download is required by Android.
+            Already installed? Open the app → Profile → <strong>Check for updates</strong>.
           </p>
         </div>
 

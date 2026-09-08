@@ -60,6 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDeactivated(true);
         return null;
       }
+      // Keep existing session on transient network / cold-start errors
+      if (
+        error instanceof AppError &&
+        (error.code === ERROR_CODES.NETWORK || error.code === ERROR_CODES.UNKNOWN)
+      ) {
+        return null;
+      }
       setUser(null);
       return null;
     } finally {

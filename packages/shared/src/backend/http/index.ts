@@ -17,12 +17,30 @@ import type { KeyValueStorage } from '../../storage';
 import type { NexoraBackend } from '../types';
 
 const TOKEN_KEY = 'nexora.api.token';
+const USER_CACHE_KEY = 'nexora.api.user.cache';
 
 type ApiErrorBody = {
   code?: ErrorCode;
   message?: string;
   fieldErrors?: Record<string, string>;
 };
+
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 4;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAuthFailure(code?: ErrorCode, status?: number): boolean {
+  if (status === 401 || status === 403) return true;
+  return (
+    code === ERROR_CODES.UNAUTHENTICATED ||
+    code === ERROR_CODES.FORBIDDEN ||
+    code === ERROR_CODES.ACCOUNT_INACTIVE ||
+    code === ERROR_CODES.INVALID_CREDENTIAL
+  );
+}
 
 export function createHttpBackend(options: {
   baseUrl: string;
@@ -42,38 +60,80 @@ export function createHttpBackend(options: {
       if (token) headers.set('Authorization', `Bearer ${token}`);
     }
 
-    let response: Response;
-    try {
-      response = await fetch(`${baseUrl}${path}`, { ...init, headers });
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : 'network error';
-      throw new AppError(
-        ERROR_CODES.UNKNOWN,
-        `Cannot reach API at ${baseUrl}${path} (${detail}). Check internet connection.`,
-      );
-    }
+    const method = (init.method ?? 'GET').toUpperCase();
+    const isSafeRetryPath =
+      path.includes('/auth/me') ||
+      path.includes('/auth/identify') ||
+      path.includes('/auth/login') ||
+      path.includes('/stats/') ||
+      path.includes('/health') ||
+      path.includes('/records/mine') ||
+      path.includes('/records/all') ||
+      path.includes('/admin/users');
+    const canRetry =
+      method === 'GET' || method === 'HEAD' || method === 'OPTIONS' || isSafeRetryPath;
 
-    const raw = await response.text();
-    let data = {} as T & ApiErrorBody;
-    if (raw) {
+    let lastError: AppError | null = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      let response: Response;
       try {
-        data = JSON.parse(raw) as T & ApiErrorBody;
-      } catch {
+        response = await fetch(`${baseUrl}${path}`, { ...init, headers });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'network error';
+        lastError = new AppError(
+          ERROR_CODES.NETWORK,
+          `Cannot reach API (${detail}). Retrying…`,
+        );
+        if (attempt < MAX_ATTEMPTS && canRetry) {
+          await sleep(400 * attempt * attempt);
+          continue;
+        }
         throw new AppError(
-          ERROR_CODES.UNKNOWN,
-          `API returned non-JSON (${response.status}) from ${baseUrl}${path}.`,
+          ERROR_CODES.NETWORK,
+          `Cannot reach API at ${baseUrl}${path}. Check your internet and try again.`,
         );
       }
+
+      const raw = await response.text();
+      let data = {} as T & ApiErrorBody;
+      if (raw) {
+        try {
+          data = JSON.parse(raw) as T & ApiErrorBody;
+        } catch {
+          lastError = new AppError(
+            ERROR_CODES.NETWORK,
+            `API temporarily unavailable (${response.status}).`,
+          );
+          if (attempt < MAX_ATTEMPTS && RETRYABLE_STATUS.has(response.status)) {
+            await sleep(400 * attempt * attempt);
+            continue;
+          }
+          throw lastError;
+        }
+      }
+
+      if (!response.ok) {
+        const code = (data.code as ErrorCode) ?? ERROR_CODES.UNKNOWN;
+        const message = data.message ?? `Request failed (${response.status}).`;
+        lastError = new AppError(code, message, data.fieldErrors);
+
+        if (
+          attempt < MAX_ATTEMPTS &&
+          canRetry &&
+          RETRYABLE_STATUS.has(response.status) &&
+          !isAuthFailure(code, response.status)
+        ) {
+          await sleep(400 * attempt * attempt);
+          continue;
+        }
+        throw lastError;
+      }
+
+      return data;
     }
 
-    if (!response.ok) {
-      throw new AppError(
-        (data.code as ErrorCode) ?? ERROR_CODES.UNKNOWN,
-        data.message ?? `Request failed (${response.status}).`,
-        data.fieldErrors,
-      );
-    }
-    return data;
+    throw lastError ?? new AppError(ERROR_CODES.UNKNOWN, 'Request failed.');
   }
 
   function queryString(query?: ListQuery): string {
@@ -90,6 +150,24 @@ export function createHttpBackend(options: {
     return value ? `?${value}` : '';
   }
 
+  async function cacheUser(user: UserProfile | null): Promise<void> {
+    if (!user) {
+      await storage.removeItem(USER_CACHE_KEY);
+      return;
+    }
+    await storage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+  }
+
+  async function readCachedUser(): Promise<UserProfile | null> {
+    const raw = await storage.getItem(USER_CACHE_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as UserProfile;
+    } catch {
+      return null;
+    }
+  }
+
   return {
     kind: 'api',
     auth: {
@@ -101,6 +179,7 @@ export function createHttpBackend(options: {
         );
         if (result.status === 'authenticated') {
           await storage.setItem(TOKEN_KEY, result.token);
+          await cacheUser(result.user);
         }
         return result;
       },
@@ -111,6 +190,7 @@ export function createHttpBackend(options: {
           false,
         );
         await storage.setItem(TOKEN_KEY, result.token);
+        await cacheUser(result.user);
         return result.user;
       },
       async register(input: RegisterInput) {
@@ -120,6 +200,7 @@ export function createHttpBackend(options: {
           false,
         );
         await storage.setItem(TOKEN_KEY, result.token);
+        await cacheUser(result.user);
         return result.user;
       },
       async setupProfile(input: ProfileSetupInput) {
@@ -127,6 +208,7 @@ export function createHttpBackend(options: {
           method: 'POST',
           body: JSON.stringify(input),
         });
+        await cacheUser(result.user);
         return result.user;
       },
       async login(input: LoginInput) {
@@ -136,6 +218,7 @@ export function createHttpBackend(options: {
           false,
         );
         await storage.setItem(TOKEN_KEY, result.token);
+        await cacheUser(result.user);
         return result.user;
       },
       async logout() {
@@ -143,6 +226,7 @@ export function createHttpBackend(options: {
           await request('/auth/logout', { method: 'POST' });
         } finally {
           await storage.removeItem(TOKEN_KEY);
+          await cacheUser(null);
         }
       },
       async resetPassword(email: string) {
@@ -160,17 +244,29 @@ export function createHttpBackend(options: {
       },
       async getCurrentUser() {
         const token = await storage.getItem(TOKEN_KEY);
-        if (!token) return null;
+        if (!token) {
+          await cacheUser(null);
+          return null;
+        }
         try {
           const result = await request<{ user: UserProfile }>('/auth/me');
+          await cacheUser(result.user);
           return result.user;
         } catch (error) {
           if (error instanceof AppError && error.code === ERROR_CODES.ACCOUNT_INACTIVE) {
             await storage.removeItem(TOKEN_KEY);
+            await cacheUser(null);
             throw error;
           }
-          await storage.removeItem(TOKEN_KEY);
-          return null;
+          if (error instanceof AppError && isAuthFailure(error.code)) {
+            await storage.removeItem(TOKEN_KEY);
+            await cacheUser(null);
+            return null;
+          }
+          // Transient network / cold-start: keep session, return cache if any
+          const cached = await readCachedUser();
+          if (cached) return cached;
+          throw error;
         }
       },
       async refreshUser() {
@@ -187,11 +283,13 @@ export function createHttpBackend(options: {
           method: 'PATCH',
           body: JSON.stringify(input),
         });
+        await cacheUser(result.user);
         return result.user;
       },
       async deactivateSelf() {
         await request('/users/me/deactivate', { method: 'POST' });
         await storage.removeItem(TOKEN_KEY);
+        await cacheUser(null);
       },
     },
     records: {

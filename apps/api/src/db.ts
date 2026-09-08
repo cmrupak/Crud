@@ -47,6 +47,31 @@ function isRemotePostgres(connectionString: string): boolean {
   return /supabase\.(co|com)|pooler\.supabase|sslmode=require/i.test(connectionString);
 }
 
+function isServerlessRuntime(): boolean {
+  return process.env.NETLIFY === 'true' || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+function isTransientDbError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = 'code' in error ? String((error as { code: unknown }).code) : '';
+  const message = 'message' in error ? String((error as { message: unknown }).message) : '';
+  return (
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNREFUSED' ||
+    code === '57P01' ||
+    code === '57P03' ||
+    code === '53300' ||
+    code === '08006' ||
+    code === '08001' ||
+    /timeout|terminat|connection|too many clients/i.test(message)
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function createPostgresClient(): DbClient {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -55,34 +80,63 @@ function createPostgresClient(): DbClient {
     );
   }
 
+  const serverless = isServerlessRuntime();
+  // Serverless must use a tiny pool or Supabase pooler connections get exhausted.
   const pool = new pg.Pool({
     connectionString,
-    // Supabase (and most cloud Postgres) require TLS
     ssl: isRemotePostgres(connectionString) ? { rejectUnauthorized: false } : undefined,
-    max: 10,
+    max: serverless ? 1 : 10,
+    idleTimeoutMillis: serverless ? 1_000 : 30_000,
+    connectionTimeoutMillis: 12_000,
+    allowExitOnIdle: serverless,
   });
+
+  async function withRetry<T>(run: () => Promise<T>): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await run();
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3 && isTransientDbError(error)) {
+          await sleep(200 * attempt);
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError;
+  }
 
   return {
     async execute(input) {
       const { sql, args } = normalize(input);
-      const result = await pool.query(toPgParams(sql), args);
-      return { rows: result.rows as Record<string, unknown>[] };
+      return withRetry(async () => {
+        const result = await pool.query(toPgParams(sql), args);
+        return { rows: result.rows as Record<string, unknown>[] };
+      });
     },
     async batch(statements) {
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        for (const statement of statements) {
-          const { sql, args } = normalize(statement);
-          await client.query(toPgParams(sql), args);
+      return withRetry(async () => {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          for (const statement of statements) {
+            const { sql, args } = normalize(statement);
+            await client.query(toPgParams(sql), args);
+          }
+          await client.query('COMMIT');
+        } catch (error) {
+          try {
+            await client.query('ROLLBACK');
+          } catch {
+            // ignore rollback errors
+          }
+          throw error;
+        } finally {
+          client.release();
         }
-        await client.query('COMMIT');
-      } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-      } finally {
-        client.release();
-      }
+      });
     },
   };
 }
